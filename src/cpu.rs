@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::os::unix::raw::mode_t;
 use crate::opcodes;
 
 bitflags! {
@@ -56,7 +55,7 @@ pub enum AddressingMode {
     NoneAddressing,
 }
 
-trait Mem {
+pub trait Mem {
     fn mem_read(&self, addr: u16) -> u8;
 
     fn mem_write(&mut self, addr: u16, data: u8);
@@ -99,6 +98,8 @@ impl CPU {
             memory: [0; 0xFFFF],
         }
     }
+
+
 
     fn get_operand_address(&mut self, mode: &AddressingMode) -> u16 {
         match mode {
@@ -150,7 +151,7 @@ impl CPU {
         self.register_y = 0;
         self.stack_pointer = STACK_RESET;
         self.status = CpuFlags::from_bits_truncate(0b100100);
-
+        //self.memory  = [0; 0xFFFF];
         self.program_counter = self.mem_read_u16(0xFFFC);
     }
 
@@ -201,8 +202,8 @@ impl CPU {
 
 
     pub fn load(&mut self, program: Vec<u8>) {
-        self.memory[0x8000.. (0x8000 + program.len())].copy_from_slice(&program[..]);
-        self.mem_write_u16(0xFFFC, 0x8000);
+        self.memory[0x0600..(0x0600 + program.len())].copy_from_slice(&program[..]);
+        self.mem_write_u16(0xFFFC, 0x0600);
     }
 
     fn set_carry_flag(&mut self) {
@@ -213,7 +214,14 @@ impl CPU {
         self.status.remove(CpuFlags::CARRY);
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self){
+        self.run_with_callback(|_| {});
+    }
+
+    pub fn run_with_callback<F>(&mut self, mut callback: F)
+        where
+            F: FnMut(&mut CPU),
+    {
         let ref opcodes: HashMap<u8, &'static opcodes::OpCode> = *opcodes::OPCODES_MAP;
 
         loop {
@@ -221,11 +229,11 @@ impl CPU {
             self.program_counter += 1;
             let program_counter_state = self.program_counter;
 
-            let opcode = opcodes.get(&code).expect(&format!("OpCode {:x} is not recognized", code));
+            let opcode = opcodes.get(&code).unwrap();
 
             match code {
 
-                0xa9 | 0xa5 | 0xb5 | 0xad | 0xbd | 0xb9 | 0xa1 | 0xb1 => self.lda(&opcode.mode),
+                0xa9 | 0xa5 | 0xb5 | 0xad | 0xbd | 0xb9 | 0xa1 | 0xb1 => {self.lda(&opcode.mode);}
                 0xA0 | 0xAC | 0xBC | 0xA4 | 0xB4 => self.ldy(&opcode.mode),
                 0xa2 | 0xae | 0xbe | 0xa6 | 0xb6 => self.ldx(&opcode.mode),
                 0x85 | 0x95 | 0x8d | 0x9d | 0x99 | 0x81 | 0x91 => self.sta(&opcode.mode),
@@ -309,7 +317,7 @@ impl CPU {
 
                 //JSR
                 0x20 => {
-                    self.stack_push_u16(self.program_counter + 2 -1);
+                    self.stack_push_u16(self.program_counter + 2 - 1);
                     let target_address = self.mem_read_u16(self.program_counter);
                     self.program_counter = target_address;
                 }
@@ -379,6 +387,8 @@ impl CPU {
             if program_counter_state == self.program_counter {
                 self.program_counter += (opcode.len - 1) as u16;
             }
+
+            callback(self);
         }
     }
 
@@ -620,14 +630,14 @@ impl CPU {
     }
 
     fn lda(&mut self, mode: &AddressingMode) {
-        let addr = self.get_operand_address(&mode);
+        let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
         self.set_register_a(value);
         // self.update_zero_and_negative_flags(self.register_a);
     }
 
     fn ldx(&mut self, mode: &AddressingMode) {
-        let addr = self.get_operand_address(&mode);
+        let addr = self.get_operand_address(mode);
         let value = self.mem_read(addr);
         self.register_x = value;
         self.update_zero_and_negative_flags(self.register_x);

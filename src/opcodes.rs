@@ -1,6 +1,5 @@
 use crate::cpu::AddressingMode;
 use std::collections::HashMap;
-use crate::cpu::AddressingMode::Absolute;
 
 
 pub struct OpCode {
@@ -15,11 +14,11 @@ pub struct OpCode {
 impl OpCode {
     fn new(code: u8, mnemonic: &'static str, len: u8, cycles: u8, mode: AddressingMode) -> Self {
         OpCode{
-            code,
-            mnemonic,
-            len,
-            cycles,
-            mode,
+            code: code,
+            mnemonic: mnemonic,
+            len: len,
+            cycles: cycles,
+            mode: mode,
         }
 
     }
@@ -58,6 +57,12 @@ lazy_static! {
         OpCode::new(0xBE, "LDX", 3, 4, AddressingMode::Absolute_Y),
         OpCode::new(0xA6, "LDX", 2, 3, AddressingMode::ZeroPage),
         OpCode::new(0xB6, "LDX", 2, 4, AddressingMode::ZeroPage_Y),
+
+        OpCode::new(0xa0, "LDY", 2, 2, AddressingMode::Immediate),
+        OpCode::new(0xa4, "LDY", 2, 3, AddressingMode::ZeroPage),
+        OpCode::new(0xb4, "LDY", 2, 4, AddressingMode::ZeroPage_X),
+        OpCode::new(0xac, "LDY", 3, 4, AddressingMode::Absolute),
+        OpCode::new(0xbc, "LDY", 3, 4/*+1 if page crossed*/, AddressingMode::Absolute_X),
 
         OpCode::new(0x85, "STA", 2, 3, AddressingMode::ZeroPage),
         OpCode::new(0x95, "STA", 2, 4, AddressingMode::ZeroPage_X),
